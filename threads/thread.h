@@ -93,6 +93,10 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
+    /* Time alarm. */
+    struct list_elem blocked_elem;      /* To search inside the blocked list. */
+    int64_t waited_time;                /* The time which thread has to wait it. */
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -137,5 +141,11 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+/* to block the thread for a period of time. */
+void block_thread_time(int64_t);
+
+/* to unblock the thread the block for a period of time. */
+void unblock_thread_time();
 
 #endif /* threads/thread.h */

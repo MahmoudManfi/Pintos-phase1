@@ -37,6 +37,23 @@ static struct thread *initial_thread;
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
 
+/* My functions. */
+void wakeup(void);
+
+/* the comparetor function to compare the time. */
+bool time_compare(const struct list_elem *first, const struct list_elem *second, void *aux);
+
+/* the change the varible min_time with the nex mimimum from the list. */
+void update_next(void);
+
+int64_t min_time; /*the minimum time at which a thread will be unblocked. */
+
+/* The blocked list. */
+struct list blocked_list;
+
+/* semaphore */
+static struct semaphore list_sema;
+
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
   {
@@ -49,6 +66,7 @@ struct kernel_thread_frame
 static long long idle_ticks;    /* # of timer ticks spent idle. */
 static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
 static long long user_ticks;    /* # of timer ticks in user programs. */
+static long long ticks;         /* # of timer ticks since the program start. */
 
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
@@ -98,6 +116,12 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+
+  min_time = INT64_MAX;
+
+  list_init(&blocked_list);
+  sema_init(&list_sema, 1);
+  ticks = 0;
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -137,6 +161,11 @@ thread_tick (void)
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
+
+  ticks++;
+
+  if (ticks >= min_time)
+        wakeup();
 }
 
 /* Prints thread statistics. */
@@ -464,6 +493,9 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
+  /* init the time to zero*/
+  t->waited_time = 0;
+
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -582,3 +614,86 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+void block_thread_time(int64_t sleep_time) 
+{
+
+  struct thread *t = thread_current();
+
+  t->waited_time = sleep_time;
+
+  //sema_down(&list_sema);
+
+    if (min_time > sleep_time) {
+      min_time = sleep_time;
+    }
+
+    list_insert_ordered(&blocked_list, &t->blocked_elem, time_compare, NULL);
+
+  //sema_up(&list_sema);
+
+  enum intr_level old_level = intr_disable();
+
+  thread_block();
+
+  intr_set_level(old_level);
+
+}
+
+void unblock_thread_time(int64_t sleep_time) 
+{
+  if (min_time <= sleep_time)
+    {
+      wakeup();
+    }
+}
+
+bool
+time_compare(const struct list_elem *first, const struct list_elem *second, void *aux) {
+    struct thread *t1 = list_entry(first,
+    struct thread,blocked_elem);
+    struct thread *t2 = list_entry(second,
+    struct thread,blocked_elem);
+
+    if ((t1->waited_time) < (t2->waited_time)) {
+        return true;
+    }
+
+    return false;
+}
+
+/*
+update the time wait to the next elemnet in the list
+*/
+void
+update_next()
+{
+  
+  if (list_empty(&blocked_list)) 
+  {
+    min_time = INT64_MAX;
+    return;
+  }
+
+  struct thread *t = list_entry(list_front(&blocked_list), struct thread , blocked_elem);
+  
+  min_time = t->waited_time;
+
+}
+
+void
+wakeup() {
+    
+    //sema_down(&list_sema);
+
+      struct list_elem *next = list_pop_front(&blocked_list);
+
+    //sema_up(&list_sema);
+
+    struct thread *t = list_entry(next, struct thread , blocked_elem);
+
+    update_next();
+
+    thread_unblock(t);
+
+} 
