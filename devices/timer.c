@@ -309,11 +309,10 @@ time_compare(const struct list_elem *first, const struct list_elem *second, void
     struct thread *t2 = list_entry(second,
     struct thread,blocked_elem);
 
-    if ((t1->waited_time) < (t2->waited_time)) {
-        return true;
+    if ((t1->waited_time) == (t2->waited_time)) {
+        return (t1->priority) > (t2->priority);
     }
-
-    return false;
+    return (t1->waited_time) < (t2->waited_time);
 }
 
 /*
