@@ -142,10 +142,4 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-/* to block the thread for a period of time. */
-void block_thread_time(int64_t);
-
-/* to unblock the thread the block for a period of time. */
-void unblock_thread_time();
-
 #endif /* threads/thread.h */

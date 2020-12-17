@@ -34,12 +34,35 @@ static void real_time_sleep(int64_t num, int32_t denom);
 
 static void real_time_delay(int64_t num, int32_t denom);
 
+/* My functions. */
+void wakeup(void);
+
+/* the comparetor function to compare the time. */
+bool time_compare(const struct list_elem *first, const struct list_elem *second, void *aux);
+
+/* the change the varible min_time with the nex mimimum from the list. */
+void update_next(void);
+
+int64_t min_time; /*the minimum time at which a thread will be unblocked. */
+
+/* to block the thread for a period of time. */
+void block_thread_time(int64_t);
+
+/* to unblock the thread the block for a period of time. */
+void unblock_thread_time();
+
+/* The blocked list. */
+struct list blocked_list;
+
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
 timer_init(void) {
     pit_configure_channel(0, 2, TIMER_FREQ);
     intr_register_ext(0x20, timer_interrupt, "8254 Timer");
+
+    min_time = INT64_MAX;
+    list_init(&blocked_list);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -174,6 +197,9 @@ static void
 timer_interrupt(struct intr_frame *args UNUSED) {
     ticks++;
 
+    if (ticks >= min_time)
+        wakeup();
+
     thread_tick();
 }
 
@@ -244,3 +270,80 @@ real_time_delay(int64_t num, int32_t denom) {
     ASSERT(denom % 1000 == 0);
     busy_wait(loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
 }
+
+void block_thread_time(int64_t sleep_time) 
+{
+
+  struct thread *t = thread_current();
+
+  t->waited_time = sleep_time;
+
+  enum intr_level old_level = intr_disable();
+
+  if (min_time > sleep_time) {
+    min_time = sleep_time;
+  }
+
+  list_insert_ordered(&blocked_list, &t->blocked_elem, time_compare, NULL);
+
+  thread_block();
+
+  intr_set_level(old_level);
+
+}
+
+void unblock_thread_time(int64_t sleep_time) 
+{
+  enum intr_level old_level = intr_disable();
+  if (min_time <= sleep_time)
+    {
+      wakeup();
+    }
+  intr_set_level(old_level);
+}
+
+bool
+time_compare(const struct list_elem *first, const struct list_elem *second, void *aux) {
+    struct thread *t1 = list_entry(first,
+    struct thread,blocked_elem);
+    struct thread *t2 = list_entry(second,
+    struct thread,blocked_elem);
+
+    if ((t1->waited_time) < (t2->waited_time)) {
+        return true;
+    }
+
+    return false;
+}
+
+/*
+update the time wait to the next elemnet in the list
+*/
+void
+update_next()
+{
+  
+  if (list_empty(&blocked_list)) 
+  {
+    min_time = INT64_MAX;
+    return;
+  }
+
+  struct thread *t = list_entry(list_front(&blocked_list), struct thread , blocked_elem);
+  
+  min_time = t->waited_time;
+
+}
+
+void
+wakeup() {
+
+    struct list_elem *next = list_pop_front(&blocked_list);
+
+    struct thread *t = list_entry(next, struct thread , blocked_elem);
+
+    update_next();
+
+    thread_unblock(t);
+
+} 
