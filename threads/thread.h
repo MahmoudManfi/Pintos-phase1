@@ -142,4 +142,7 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+/* comparetor by islam. */
+bool priority_compare(const struct list_elem *first, const struct list_elem * second, void * aux UNUSED);
+
 #endif /* threads/thread.h */
