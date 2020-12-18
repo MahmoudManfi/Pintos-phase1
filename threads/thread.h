@@ -90,12 +90,20 @@ struct thread
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
+    int donate_priority;                /* the priority after donation. */
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
+    struct list_elem lock_elem;        /* List element for lock list.  */
 
     /* Time alarm. */
     struct list_elem blocked_elem;      /* To search inside the blocked list. */
     int64_t waited_time;                /* The time which thread has to wait it. */
+
+    struct list acquired_locks;         /* to the locks hold by the thread. */
+
+    struct lock * seeking;                   /* to wait on it */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

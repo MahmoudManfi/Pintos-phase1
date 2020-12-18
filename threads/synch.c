@@ -40,7 +40,6 @@
 bool
 condition_comparetor(const struct list_elem * first, const struct list_elem * second, void * aux UNUSED) ;
 
-
 void
 sema_init (struct semaphore *sema, unsigned value) 
 {
@@ -71,7 +70,9 @@ sema_down (struct semaphore *sema)
       thread_block ();
     }
   sema->value--;
+
   intr_set_level (old_level);
+
 }
 
 /* Down or "P" operation on a semaphore, but only if the
@@ -193,8 +194,36 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  /* My code , Hamza and Islam*/
+  
+  enum intr_level old_level;
+  old_level = intr_disable ();
+  
+  struct thread * t = thread_current();
+  
+  if (lock->holder)
+  {
+    t-> seeking = lock;
+
+    /* hamza code */
+
+    
+
+    /* end hamza code */
+
+  }
+
   sema_down (&lock->semaphore);
-  lock->holder = thread_current ();
+
+  lock->holder = t;
+
+  t-> seeking = NULL;
+
+  list_push_back(&t->acquired_locks,&t->lock_elem);
+
+  intr_set_level (old_level);
+
+  /* end code */
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -226,7 +255,10 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+  list_pop_back(&thread_current()->acquired_locks);
+
   lock->holder = NULL;
+
   sema_up (&lock->semaphore);
 }
 

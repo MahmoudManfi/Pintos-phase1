@@ -464,6 +464,8 @@ init_thread (struct thread *t, const char *name, int priority)
   /* init the time to zero*/
   t->waited_time = 0;
 
+  list_init(&t->acquired_locks);
+
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
