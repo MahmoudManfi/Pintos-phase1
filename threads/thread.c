@@ -333,16 +333,31 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  enum intr_level old_level;
+  old_level = intr_disable ();
+
+  struct thread * t = thread_current();
   
+
+  t->priority = new_priority;
+ // printf("5ly balak el donated priority = %d\n\n" , t->donate_priority ) ; 
   thread_yield();
+  //printf("5ly b3d el yield  balak el donated priority = %d \n\n" , t->donate_priority ) ; 
+
+  intr_set_level (old_level);
 }
 
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+  //printf("for thread %s Donated priority = %d while  priority = %d \n " ,thread_name() ,  thread_current()->donate_priority , thread_current()->priority  ) ;
+  enum  intr_level old_level = intr_disable ();
+  struct thread *t = thread_current();
+  int res =  max(t->donate_priority ,  t->priority) ;
+  intr_set_level (old_level);
+  return res ; 
+
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -463,7 +478,7 @@ init_thread (struct thread *t, const char *name, int priority)
 
   /* init the time to zero*/
   t->waited_time = 0;
-
+  t->donate_priority = priority; // for bug in the tests  
   list_init(&t->acquired_locks);
 
   old_level = intr_disable ();
@@ -586,9 +601,25 @@ bool priority_compare(const struct list_elem *first, const struct list_elem * se
     struct thread *t1 = list_entry(first,struct thread,elem);
     struct thread *t2 = list_entry(second,struct thread,elem);
 
-    if ((t1->priority) > (t2->priority)) {
+    int effective_priority1 = max(t1->priority,t1->donate_priority);
+    int effective_priority2 = max(t2->donate_priority,t2->priority);
+    
+    if (effective_priority1 > effective_priority2) {
         return true;
     }
     return false;
 
+}
+
+void reorder_list(struct list_elem * elem) {
+  
+  list_remove(elem);
+  list_insert_ordered (&ready_list,elem,&priority_compare,NULL);
+
+}
+
+int max(int first, int second) 
+{
+  if (first > second) return first;
+  return second;
 }

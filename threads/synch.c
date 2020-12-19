@@ -201,25 +201,43 @@ lock_acquire (struct lock *lock)
   
   struct thread * t = thread_current();
   
-  if (lock->holder)
+  if (lock->holder != NULL)
   {
     t-> seeking = lock;
 
-    /* hamza code */
+    int t_priority = thread_get_priority();
 
+    /* Manfy strarting code */
+
+    struct thread * next = lock->holder;
+
+    while (next->seeking != NULL && next->donate_priority < t_priority)
+    {
+      /* change the priority of the thread */
+      next->donate_priority = t_priority; 
+      list_remove(&next->elem);
+      list_insert_ordered (&next->seeking->semaphore.waiters, &next->elem,&priority_compare,NULL);
+
+      next = next->seeking->holder;
+
+    }
     
+    if (next->donate_priority < t_priority)
+    {
+      next->donate_priority = t_priority;
+      reorder_list(&next->elem);
+    }
 
-    /* end hamza code */
-
+    /* Manfy ending code */
   }
 
   sema_down (&lock->semaphore);
 
   lock->holder = t;
-
+   
   t-> seeking = NULL;
 
-  list_push_back(&t->acquired_locks,&t->lock_elem);
+  list_push_back(&t->acquired_locks,&lock->elem);
 
   intr_set_level (old_level);
 
@@ -255,11 +273,47 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
-  list_pop_back(&thread_current()->acquired_locks);
+  /* Manfy and Hamza code */
+
+  enum intr_level old_level;
+  old_level = intr_disable ();
+
+  struct thread * t = thread_current();
+
+  struct list * locks = &t->acquired_locks ;
+
+  list_remove(&lock->elem); // to be continued....
 
   lock->holder = NULL;
 
+  // make the effective priority same as priority
+  /*change the priority of the thread accodring to the acquired locks */
+  int new_donated_priority = t->priority ;  // bugs 
+
+  for(struct list_elem* iter = list_begin(locks);iter != list_end(locks); iter = list_next(iter) )
+  {
+  //   //do stuff with iter
+  //   //struct list_contents* = list_entry(iter, struct list_contents,list_elem);
+    struct lock *cur_lock = list_entry(iter , struct lock , elem); 
+    struct list * holding_list = &cur_lock->semaphore.waiters;
+    
+    if (!list_empty(holding_list)) {
+    
+    int temp_priority = list_entry(list_front(holding_list),struct thread, elem)->donate_priority;
+
+      if(temp_priority > new_donated_priority) {
+        new_donated_priority = temp_priority; 
+      }
+    }
+  }
+
+  t->donate_priority = new_donated_priority ; 
+
   sema_up (&lock->semaphore);
+
+  intr_set_level (old_level);
+
+  /* Manfy and Hamza code */
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -320,7 +374,9 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
   
-  waiter.priority = thread_current()->priority;
+  struct thread * t = thread_current();
+
+  waiter.priority = max(t->priority,t->donate_priority);
 
   sema_init (&waiter.semaphore, 0);
   list_insert_ordered (&cond->waiters, &waiter.elem, &condition_comparetor, NULL);

@@ -25,13 +25,11 @@ typedef int tid_t;
 #define PRI_MAX 63                      /* Highest priority. */
 
 /* A kernel thread or user process.
-
    Each thread structure is stored in its own 4 kB page.  The
    thread structure itself sits at the very bottom of the page
    (at offset 0).  The rest of the page is reserved for the
    thread's kernel stack, which grows downward from the top of
    the page (at offset 4 kB).  Here's an illustration:
-
         4 kB +---------------------------------+
              |          kernel stack           |
              |                |                |
@@ -53,22 +51,18 @@ typedef int tid_t;
              |               name              |
              |              status             |
         0 kB +---------------------------------+
-
    The upshot of this is twofold:
-
       1. First, `struct thread' must not be allowed to grow too
          big.  If it does, then there will not be enough room for
          the kernel stack.  Our base `struct thread' is only a
          few bytes in size.  It probably should stay well under 1
          kB.
-
       2. Second, kernel stacks must not be allowed to grow too
          large.  If a stack overflows, it will corrupt the thread
          state.  Thus, kernel functions should not allocate large
          structures or arrays as non-static local variables.  Use
          dynamic allocation with malloc() or palloc_get_page()
          instead.
-
    The first symptom of either of these problems will probably be
    an assertion failure in thread_current(), which checks that
    the `magic' member of the running thread's `struct thread' is
@@ -90,20 +84,18 @@ struct thread
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
-    int donate_priority;                /* the priority after donation. */
-
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-
-    struct list_elem lock_elem;        /* List element for lock list.  */
 
     /* Time alarm. */
     struct list_elem blocked_elem;      /* To search inside the blocked list. */
     int64_t waited_time;                /* The time which thread has to wait it. */
 
     struct list acquired_locks;         /* to the locks hold by the thread. */
-
+    
     struct lock * seeking;                   /* to wait on it */
+
+    int donate_priority;                /* the priority after donation. */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -152,5 +144,11 @@ int thread_get_load_avg (void);
 
 /* comparetor by islam. */
 bool priority_compare(const struct list_elem *first, const struct list_elem * second, void * aux UNUSED);
+
+/* to make reorder to ready list when we add new element */
+void reorder_list(struct list_elem * elem);
+
+/* get the max between two numbers */
+int max(int first, int second);
 
 #endif /* threads/thread.h */
