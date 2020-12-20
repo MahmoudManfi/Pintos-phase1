@@ -1,6 +1,7 @@
 #! /bin/sh
 
 # Path to GDB macros file.  Customize for your site.
+
 GDBMACROS=/home/islam/pintos/src/misc/gdb-macros
 
 # Choose correct GDB.

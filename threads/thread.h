@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include <fixed_point.h>
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -92,10 +93,14 @@ struct thread
     int64_t waited_time;                /* The time which thread has to wait it. */
 
     struct list acquired_locks;         /* to the locks hold by the thread. */
-    
-    struct lock * seeking;                   /* to wait on it */
+
+    struct list_elem advanced_elem;      /* List element for advanced list. */
+ 
+    struct lock *seeking;                   /* to wait on it */
 
     int donate_priority;                /* the priority after donation. */
+
+    int nice;                            /* Thread nice value */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -148,7 +153,6 @@ bool priority_compare(const struct list_elem *first, const struct list_elem * se
 /* to make reorder to ready list when we add new element */
 void reorder_list(struct list_elem * elem);
 
-/* get the max between two numbers */
-int max(int first, int second);
+void update_priority(struct list * locks);
 
 #endif /* threads/thread.h */
