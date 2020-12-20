@@ -282,32 +282,14 @@ lock_release (struct lock *lock)
 
   struct list * locks = &t->acquired_locks ;
 
-  list_remove(&lock->elem); // to be continued....
+  list_remove(&lock->elem);
 
   lock->holder = NULL;
 
   // make the effective priority same as priority
   /*change the priority of the thread accodring to the acquired locks */
-  int new_donated_priority = t->priority ;  // bugs 
-
-  for(struct list_elem* iter = list_begin(locks);iter != list_end(locks); iter = list_next(iter) )
-  {
-  //   //do stuff with iter
-  //   //struct list_contents* = list_entry(iter, struct list_contents,list_elem);
-    struct lock *cur_lock = list_entry(iter , struct lock , elem); 
-    struct list * holding_list = &cur_lock->semaphore.waiters;
-    
-    if (!list_empty(holding_list)) {
-    
-    int temp_priority = list_entry(list_front(holding_list),struct thread, elem)->donate_priority;
-
-      if(temp_priority > new_donated_priority) {
-        new_donated_priority = temp_priority; 
-      }
-    }
-  }
-
-  t->donate_priority = new_donated_priority ; 
+  
+  update_priority(locks);
 
   sema_up (&lock->semaphore);
 
@@ -376,7 +358,7 @@ cond_wait (struct condition *cond, struct lock *lock)
   
   struct thread * t = thread_current();
 
-  waiter.priority = max(t->priority,t->donate_priority);
+  waiter.priority = thread_get_priority();
 
   sema_init (&waiter.semaphore, 0);
   list_insert_ordered (&cond->waiters, &waiter.elem, &condition_comparetor, NULL);

@@ -180,6 +180,9 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+  
+  enum intr_level old_level;
+  old_level = intr_disable();
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -196,6 +199,7 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  intr_set_level(old_level);
   /* Add to run queue. */
   thread_unblock (t);
   
@@ -235,7 +239,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_insert_ordered (&ready_list, &t->elem,&priority_compare,NULL);
+  list_insert_ordered (&ready_list, &t->elem,(list_less_func *) &priority_compare,NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -306,7 +310,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_insert_ordered (&ready_list, &cur->elem,&priority_compare,NULL);
+    list_insert_ordered (&ready_list, &cur->elem,(list_less_func *) &priority_compare,NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -340,6 +344,8 @@ thread_set_priority (int new_priority)
   
 
   t->priority = new_priority;
+
+  update_priority(&t -> acquired_locks);
  // printf("5ly balak el donated priority = %d\n\n" , t->donate_priority ) ; 
   thread_yield();
   //printf("5ly b3d el yield  balak el donated priority = %d \n\n" , t->donate_priority ) ; 
@@ -354,7 +360,7 @@ thread_get_priority (void)
   //printf("for thread %s Donated priority = %d while  priority = %d \n " ,thread_name() ,  thread_current()->donate_priority , thread_current()->priority  ) ;
   enum  intr_level old_level = intr_disable ();
   struct thread *t = thread_current();
-  int res =  max(t->donate_priority ,  t->priority) ;
+  int res =  t->donate_priority;
   intr_set_level (old_level);
   return res ; 
 
@@ -480,6 +486,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->waited_time = 0;
   t->donate_priority = priority; // for bug in the tests  
   list_init(&t->acquired_locks);
+  t->seeking = NULL;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -601,10 +608,7 @@ bool priority_compare(const struct list_elem *first, const struct list_elem * se
     struct thread *t1 = list_entry(first,struct thread,elem);
     struct thread *t2 = list_entry(second,struct thread,elem);
 
-    int effective_priority1 = max(t1->priority,t1->donate_priority);
-    int effective_priority2 = max(t2->donate_priority,t2->priority);
-    
-    if (effective_priority1 > effective_priority2) {
+    if ((t1->donate_priority) > (t2->donate_priority)) {
         return true;
     }
     return false;
@@ -618,8 +622,30 @@ void reorder_list(struct list_elem * elem) {
 
 }
 
-int max(int first, int second) 
+void update_priority(struct list * locks) 
 {
-  if (first > second) return first;
-  return second;
+
+  struct thread * t = thread_current();
+
+  int new_donated_priority = t->priority ;  // bugs 
+
+  for(struct list_elem* iter = list_begin(locks);iter != list_end(locks); iter = list_next(iter) )
+  {
+  //   //do stuff with iter
+  //   //struct list_contents* = list_entry(iter, struct list_contents,list_elem);
+    struct lock *cur_lock = list_entry(iter , struct lock , elem);
+
+    struct list * holding_list = &cur_lock->semaphore.waiters;
+    
+    if (!list_empty(holding_list)) {
+    
+    int temp_priority = list_entry(list_front(holding_list),struct thread, elem)->donate_priority;
+
+      if(temp_priority > new_donated_priority) {
+        new_donated_priority = temp_priority; 
+      }
+    }
+  }
+
+  t->donate_priority = new_donated_priority ; 
 }

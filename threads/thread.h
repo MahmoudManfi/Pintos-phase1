@@ -148,7 +148,6 @@ bool priority_compare(const struct list_elem *first, const struct list_elem * se
 /* to make reorder to ready list when we add new element */
 void reorder_list(struct list_elem * elem);
 
-/* get the max between two numbers */
-int max(int first, int second);
+void update_priority(struct list * locks);
 
 #endif /* threads/thread.h */
