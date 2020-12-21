@@ -155,9 +155,6 @@ void reorder_list(struct list_elem * elem);
 
 void update_priority(struct list * locks);
 
-/* To calculate the new priority in thread_mlfqs mode */
-void update_priority_mlfqs(void);
-
 int get_new_priority(struct thread * t);
 
 void update_recent_cpu();

@@ -377,8 +377,6 @@ thread_set_nice (int nice UNUSED)
   old_level = intr_disable ();
 
   thread_current()->nice = nice;
-  
-  update_priority_mlfqs();
 
   intr_set_level (old_level);
 }
@@ -667,10 +665,6 @@ void update_priority(struct list * locks)
   t->donate_priority = new_donated_priority ; 
 }
 
-void update_priority_mlfqs() {
-  thread_set_priority(get_new_priority(thread_current()));
-}
-
 int get_new_priority(struct thread *t) {
   return PRI_MAX - convert_todecimal_rounding_toward_zero(divide(t->recent_cpu,convert_tofixed_point(4))) - 2*t->nice;
 }
@@ -692,7 +686,10 @@ void update_recent_cpu(){
 }
 
 void update_load_avg(){
+  int runnig_thread_number = 0;
+  if (thread_current() != idle_thread)
+    runnig_thread_number = 1;    
   load_avg = multiply(divide(convert_tofixed_point(59),convert_tofixed_point(60)),load_avg);
   load_avg += multiply(divide(convert_tofixed_point(1),
-              convert_tofixed_point(60)),convert_tofixed_point(list_size(&ready_list)));
+              convert_tofixed_point(60)),convert_tofixed_point(list_size(&ready_list) + runnig_thread_number));
 }
