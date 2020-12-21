@@ -201,7 +201,7 @@ lock_acquire (struct lock *lock)
   
   struct thread * t = thread_current();
   
-  if (lock->holder != NULL)
+  if (lock->holder != NULL && !thread_mlfqs)
   {
     t-> seeking = lock;
 
@@ -234,10 +234,10 @@ lock_acquire (struct lock *lock)
   sema_down (&lock->semaphore);
 
   lock->holder = t;
-   
-  t-> seeking = NULL;
-
-  list_push_back(&t->acquired_locks,&lock->elem);
+  if (!thread_mlfqs) {
+    t-> seeking = NULL;
+    list_push_back(&t->acquired_locks,&lock->elem);
+  }
 
   intr_set_level (old_level);
 
@@ -274,22 +274,21 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
 
   /* Manfy and Hamza code */
-
+  
   enum intr_level old_level;
   old_level = intr_disable ();
+  
+  if (!thread_mlfqs) {
+    struct thread * t = thread_current();
 
-  struct thread * t = thread_current();
+    struct list * locks = &t->acquired_locks ;
 
-  struct list * locks = &t->acquired_locks ;
-
-  list_remove(&lock->elem);
+    list_remove(&lock->elem);
+  
+    update_priority(locks);
+  }
 
   lock->holder = NULL;
-
-  // make the effective priority same as priority
-  /*change the priority of the thread accodring to the acquired locks */
-  
-  update_priority(locks);
 
   sema_up (&lock->semaphore);
 

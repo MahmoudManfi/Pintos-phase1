@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include <fixed_point.h>
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -97,6 +98,10 @@ struct thread
 
     int donate_priority;                /* the priority after donation. */
 
+    int nice;                            /* Thread nice value */
+
+    int64_t recent_cpu;                      /* Thread recent cpu */
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -149,5 +154,14 @@ bool priority_compare(const struct list_elem *first, const struct list_elem * se
 void reorder_list(struct list_elem * elem);
 
 void update_priority(struct list * locks);
+
+/* To calculate the new priority in thread_mlfqs mode */
+void update_priority_mlfqs(void);
+
+int get_new_priority(struct thread * t);
+
+void update_recent_cpu();
+
+void update_load_avg();
 
 #endif /* threads/thread.h */

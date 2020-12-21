@@ -199,6 +199,8 @@ timer_interrupt(struct intr_frame *args UNUSED) {
 
     if (ticks >= min_time)
         wakeup();
+    if (thread_mlfqs)
+        advanced();
 
     thread_tick();
 }
@@ -346,3 +348,20 @@ wakeup() {
     thread_unblock(t);
 
 } 
+
+void
+advanced() {
+
+    enum intr_level old_level = intr_disable();
+
+    if (ticks%TIMER_FREQ == 0) {
+        update_load_avg();
+        update_recent_cpu();
+    } else {
+        thread_current()->recent_cpu = add(convert_tofixed_point(1),thread_current()->recent_cpu);
+        thread_current()->donate_priority = get_new_priority(thread_current()); // because you can't call thread_yield
+    }
+
+    intr_set_level(old_level);
+
+}

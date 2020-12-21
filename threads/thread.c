@@ -49,6 +49,7 @@ struct kernel_thread_frame
 static long long idle_ticks;    /* # of timer ticks spent idle. */
 static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
 static long long user_ticks;    /* # of timer ticks in user programs. */
+static int64_t load_avg;            /* the system load average */
 
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
@@ -90,6 +91,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+  load_avg = 0;
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -339,16 +341,21 @@ thread_set_priority (int new_priority)
 {
   enum intr_level old_level;
   old_level = intr_disable ();
-
-  struct thread * t = thread_current();
   
+  if (thread_mlfqs) 
+  {
+    thread_current()->donate_priority = new_priority;
+  } 
+  else
+  {
+    struct thread * t = thread_current();
 
-  t->priority = new_priority;
+    t->priority = new_priority;
 
-  update_priority(&t -> acquired_locks);
- // printf("5ly balak el donated priority = %d\n\n" , t->donate_priority ) ; 
+    update_priority(&t -> acquired_locks);
+  }
+  
   thread_yield();
-  //printf("5ly b3d el yield  balak el donated priority = %d \n\n" , t->donate_priority ) ; 
 
   intr_set_level (old_level);
 }
@@ -357,44 +364,45 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
-  //printf("for thread %s Donated priority = %d while  priority = %d \n " ,thread_name() ,  thread_current()->donate_priority , thread_current()->priority  ) ;
-  enum  intr_level old_level = intr_disable ();
-  struct thread *t = thread_current();
-  int res =  t->donate_priority;
-  intr_set_level (old_level);
-  return res ; 
-
+  return thread_current()->donate_priority; 
 }
 
 /* Sets the current thread's nice value to NICE. */
 void
 thread_set_nice (int nice UNUSED) 
 {
-  /* Not yet implemented. */
+  ASSERT(thread_mlfqs);
+
+  enum intr_level old_level;
+  old_level = intr_disable ();
+
+  thread_current()->nice = nice;
+  
+  update_priority_mlfqs();
+
+  intr_set_level (old_level);
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  ASSERT(thread_mlfqs);
+  return thread_current()->nice;
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return convert_todecimal_rounding_toward_nearset(multiply(convert_tofixed_point(100),load_avg));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return convert_todecimal_rounding_toward_nearset(multiply(convert_tofixed_point(100),thread_current()->recent_cpu));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -484,7 +492,18 @@ init_thread (struct thread *t, const char *name, int priority)
 
   /* init the time to zero*/
   t->waited_time = 0;
-  t->donate_priority = priority; // for bug in the tests  
+  
+  t->nice = 0;
+  t->recent_cpu = 0;
+
+  if (thread_mlfqs && running_thread()->status == THREAD_RUNNING) {
+    t->nice = thread_current()->nice;
+    t->recent_cpu = thread_current()->recent_cpu;
+    t->donate_priority = get_new_priority(t);
+  } else {
+    t->donate_priority = priority;
+  }
+  
   list_init(&t->acquired_locks);
   t->seeking = NULL;
 
@@ -631,8 +650,6 @@ void update_priority(struct list * locks)
 
   for(struct list_elem* iter = list_begin(locks);iter != list_end(locks); iter = list_next(iter) )
   {
-  //   //do stuff with iter
-  //   //struct list_contents* = list_entry(iter, struct list_contents,list_elem);
     struct lock *cur_lock = list_entry(iter , struct lock , elem);
 
     struct list * holding_list = &cur_lock->semaphore.waiters;
@@ -648,4 +665,34 @@ void update_priority(struct list * locks)
   }
 
   t->donate_priority = new_donated_priority ; 
+}
+
+void update_priority_mlfqs() {
+  thread_set_priority(get_new_priority(thread_current()));
+}
+
+int get_new_priority(struct thread *t) {
+  return PRI_MAX - convert_todecimal_rounding_toward_zero(divide(t->recent_cpu,convert_tofixed_point(4))) - 2*t->nice;
+}
+
+void update_recent_cpu_helper(struct thread * t, void * aux UNUSED) {
+
+  int64_t temp = multiply(convert_tofixed_point(2),load_avg);
+  t->recent_cpu = multiply(t->recent_cpu,divide(temp,add(temp,convert_tofixed_point(1))));
+  t->recent_cpu += convert_tofixed_point(t->nice);
+  t->donate_priority = get_new_priority(t);
+
+}
+
+void update_recent_cpu(){
+
+  thread_foreach(&update_recent_cpu_helper,NULL);
+  list_sort(&all_list,priority_compare,NULL);
+
+}
+
+void update_load_avg(){
+  load_avg = multiply(divide(convert_tofixed_point(59),convert_tofixed_point(60)),load_avg);
+  load_avg += multiply(divide(convert_tofixed_point(1),
+              convert_tofixed_point(60)),convert_tofixed_point(list_size(&ready_list)));
 }
