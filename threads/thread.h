@@ -89,8 +89,8 @@ struct thread
     struct list_elem elem;              /* List element. */
 
     /* Time alarm. */
-    struct list_elem blocked_elem;      /* To search inside the blocked list. */
-    int64_t waited_time;                /* The time which thread has to wait it. */
+    struct list_elem blocked_elem;      /* To search inside the blocked list and used in timer.c. */
+    int64_t waited_time;                /* The time which thread has to wait and unit ticks. */
 
     struct list acquired_locks;         /* to the locks hold by the thread. */
     
@@ -100,7 +100,7 @@ struct thread
 
     int nice;                            /* Thread nice value */
 
-    int64_t recent_cpu;                      /* Thread recent cpu */
+    struct real recent_cpu;                      /* Thread recent cpu */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

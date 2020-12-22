@@ -207,7 +207,7 @@ lock_acquire (struct lock *lock)
 
     int t_priority = thread_get_priority();
 
-    /* Manfy strarting code */
+    /* My code start. */
 
     struct thread * next = lock->holder;
 
@@ -228,7 +228,7 @@ lock_acquire (struct lock *lock)
       reorder_list(&next->elem);
     }
 
-    /* Manfy ending code */
+    /* My code end. */
   }
 
   sema_down (&lock->semaphore);

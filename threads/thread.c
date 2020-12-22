@@ -49,7 +49,7 @@ struct kernel_thread_frame
 static long long idle_ticks;    /* # of timer ticks spent idle. */
 static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
 static long long user_ticks;    /* # of timer ticks in user programs. */
-static int64_t load_avg;            /* the system load average */
+static struct real load_avg;            /* the system load average */
 
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
@@ -91,7 +91,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-  load_avg = 0;
+  real_init(&load_avg,0);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -136,8 +136,11 @@ thread_tick (void)
     kernel_ticks++;
 
   /* Enforce preemption. */
-  if (++thread_ticks >= TIME_SLICE)
+  if (++thread_ticks >= TIME_SLICE) {
+    if (thread_mlfqs)
+      thread_current()->donate_priority = get_new_priority(thread_current()); // because you can't call thread_yield
     intr_yield_on_return ();
+  }
 
 }
 
@@ -372,13 +375,7 @@ void
 thread_set_nice (int nice UNUSED) 
 {
   ASSERT(thread_mlfqs);
-
-  enum intr_level old_level;
-  old_level = intr_disable ();
-
   thread_current()->nice = nice;
-
-  intr_set_level (old_level);
 }
 
 /* Returns the current thread's nice value. */
@@ -492,11 +489,11 @@ init_thread (struct thread *t, const char *name, int priority)
   t->waited_time = 0;
   
   t->nice = 0;
-  t->recent_cpu = 0;
+  real_init(&t->recent_cpu,0);
 
   if (thread_mlfqs && running_thread()->status == THREAD_RUNNING) {
     t->nice = thread_current()->nice;
-    t->recent_cpu = thread_current()->recent_cpu;
+    t->recent_cpu.value = thread_current()->recent_cpu.value;
     t->donate_priority = get_new_priority(t);
   } else {
     t->donate_priority = priority;
@@ -671,9 +668,9 @@ int get_new_priority(struct thread *t) {
 
 void update_recent_cpu_helper(struct thread * t, void * aux UNUSED) {
 
-  int64_t temp = multiply(convert_tofixed_point(2),load_avg);
+  struct real temp = multiply(convert_tofixed_point(2),load_avg);
   t->recent_cpu = multiply(t->recent_cpu,divide(temp,add(temp,convert_tofixed_point(1))));
-  t->recent_cpu += convert_tofixed_point(t->nice);
+  t->recent_cpu = add(t->recent_cpu,convert_tofixed_point(t->nice));
   t->donate_priority = get_new_priority(t);
 
 }
@@ -681,15 +678,15 @@ void update_recent_cpu_helper(struct thread * t, void * aux UNUSED) {
 void update_recent_cpu(){
 
   thread_foreach(&update_recent_cpu_helper,NULL);
-  list_sort(&all_list,priority_compare,NULL);
+  list_sort(&ready_list,priority_compare,NULL);
 
 }
 
 void update_load_avg(){
   int runnig_thread_number = 0;
   if (thread_current() != idle_thread)
-    runnig_thread_number = 1;    
+    runnig_thread_number = 1;
   load_avg = multiply(divide(convert_tofixed_point(59),convert_tofixed_point(60)),load_avg);
-  load_avg += multiply(divide(convert_tofixed_point(1),
-              convert_tofixed_point(60)),convert_tofixed_point(list_size(&ready_list) + runnig_thread_number));
+  load_avg = add(load_avg,multiply(divide(convert_tofixed_point(1),
+              convert_tofixed_point(60)),convert_tofixed_point(list_size(&ready_list) + runnig_thread_number)));
 }

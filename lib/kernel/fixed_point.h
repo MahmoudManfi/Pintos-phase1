@@ -3,22 +3,24 @@
 #include <stdint.h>
 #define FRACTION 16384  // 2^14
 
+struct real{
+    int64_t value;
+};
 
-int64_t convert_tofixed_point(int x);       /* */
+void real_init(struct real * r, int value);
 
-int convert_todecimal_rounding_toward_zero(int64_t x);      /* */ 
+struct real convert_tofixed_point(int x);       /* */
 
-int convert_todecimal_rounding_toward_nearset(int64_t x);       /* */
+int convert_todecimal_rounding_toward_zero(struct real x);      /* */ 
 
+int convert_todecimal_rounding_toward_nearset(struct real x);       /* */
 
-int64_t add(int64_t x, int64_t y);          /* */
+struct real add(struct real x, struct real y);          /* */
 
-int64_t subtract(int64_t x, int64_t y);     /* */
+struct real subtract(struct real x, struct real y);     /* */
 
-int64_t multiply(int64_t x, int64_t y);     /* */
+struct real multiply(struct real x, struct real y);     /* */
 
-int64_t divide(int64_t x, int64_t y);       /* */
-
-
+struct real divide(struct real x, struct real y);       /* */
 
 #endif /* kernel/fixed_point.h */

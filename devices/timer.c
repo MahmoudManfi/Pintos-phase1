@@ -34,8 +34,13 @@ static void real_time_sleep(int64_t num, int32_t denom);
 
 static void real_time_delay(int64_t num, int32_t denom);
 
-/* My functions. */
+/* Begining our functions. */
+
 void wakeup(void);
+
+struct semaphore sema;
+
+void advanced();
 
 /* the comparetor function to compare the time. */
 bool time_compare(const struct list_elem *first, const struct list_elem *second, void *aux);
@@ -54,6 +59,8 @@ void unblock_thread_time();
 /* The blocked list. */
 struct list blocked_list;
 
+/* Ending our functions. */
+
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
@@ -63,6 +70,7 @@ timer_init(void) {
 
     min_time = INT64_MAX;
     list_init(&blocked_list);
+    sema_init(&sema,1);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -121,8 +129,10 @@ timer_sleep(int64_t ticks) {
 
     ASSERT(intr_get_level() == INTR_ON);
 
+    // Thread should wait.
     block_thread_time(waited_time);
 
+    // Each thread wakeup another thread.
     unblock_thread_time(waited_time);
 
 }
@@ -279,15 +289,19 @@ void block_thread_time(int64_t sleep_time)
   struct thread *t = thread_current();
 
   t->waited_time = sleep_time;
-
-  enum intr_level old_level = intr_disable();
+  
+  sema_down(&sema);
 
   if (min_time > sleep_time) {
     min_time = sleep_time;
   }
-
+  
   list_insert_ordered(&blocked_list, &t->blocked_elem, time_compare, NULL);
 
+  sema_up(&sema);
+
+  enum intr_level old_level = intr_disable();
+  
   thread_block();
 
   intr_set_level(old_level);
@@ -296,13 +310,14 @@ void block_thread_time(int64_t sleep_time)
 
 void unblock_thread_time(int64_t sleep_time) 
 {
-  enum intr_level old_level = intr_disable();
+  sema_down(&sema);
   if (min_time <= sleep_time)
     {
       wakeup();
     }
-  intr_set_level(old_level);
+  sema_up(&sema);
 }
+
 
 bool
 time_compare(const struct list_elem *first, const struct list_elem *second, void *aux) {
@@ -318,7 +333,7 @@ time_compare(const struct list_elem *first, const struct list_elem *second, void
 }
 
 /*
-update the time wait to the next elemnet in the list
+to update the minimum time to choose the next element.
 */
 void
 update_next()
@@ -359,7 +374,6 @@ advanced() {
         update_recent_cpu();
     } else {
         thread_current()->recent_cpu = add(convert_tofixed_point(1),thread_current()->recent_cpu);
-        thread_current()->donate_priority = get_new_priority(thread_current()); // because you can't call thread_yield
     }
 
     intr_set_level(old_level);
