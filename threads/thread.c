@@ -502,6 +502,15 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->acquired_locks);
   t->seeking = NULL;
 
+  /* Start pintos part 2. */
+  list_init(&t->open_file_list);
+  list_init(&t->child_processe_list);
+  sema_init(&t->parent_child_sync_sema,0);
+  sema_init(&t->wait_child_sema,0);
+  /* Continue the code */
+  
+  /* End pintos part 2. */
+
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);

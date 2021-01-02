@@ -8,85 +8,87 @@ static struct lock files_sys_lock;               /* lock for syschronization bet
 
 static void syscall_handler (struct intr_frame *);
 
-void halt_wrapper();
-void exit_wrapper();
-void exec_wrapper();
-void wait_wrapper();
-void create_wrapper();
-void remove_wrapper();
-void open_wrapper();
-void filesize_wrapper();
-void read_wrapper();
-void write_wrapper();
-void seek_wrapper();
-void tell_wrapper();
-void close_wrapper();
+void halt_wrapper(void* esp);
+void exit_wrapper(void* esp);
+void exec_wrapper(void* esp);
+void wait_wrapper(void* esp);
+void create_wrapper(void* esp);
+void remove_wrapper(void* esp);
+void open_wrapper(void* esp);
+void filesize_wrapper(void* esp);
+void read_wrapper(void* esp);
+void write_wrapper(void* esp);
+void seek_wrapper(void* esp);
+void tell_wrapper(void* esp);
+void close_wrapper(void* esp);
 
 
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+
+  lock_init(&files_sys_lock);
 }
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
   
-  void *esp = f->esp;
+  void* esp = f->esp;
 
   switch (get_int(esp))
   {
   case SYS_HALT:
-    halt_wrapper();
+    halt_wrapper(esp);
     break;
   
   case SYS_EXIT:
-    exit_wrapper();
+    exit_wrapper(esp);
     break;
 
   case SYS_EXEC:
-    exec_wrapper();
+    exec_wrapper(esp);
     break;
 
   case SYS_WAIT:
-    wait_wrapper();
+    wait_wrapper(esp);
     break;
 
   case SYS_CREATE:
-    create_wrapper();
+    create_wrapper(esp);
     break;
 
   case SYS_REMOVE:
-    remove_wrapper();
+    remove_wrapper(esp);
     break;
 
   case SYS_OPEN:
-    open_wrapper();
+    open_wrapper(esp);
     break;
 
   case SYS_FILESIZE:
-    filesize_wrapper();
+    filesize_wrapper(esp);
     break;
 
   case SYS_READ:
-    read_wrapper();
+    read_wrapper(esp);
     break;
 
   case SYS_WRITE:
-    write_wrapper();
+    write_wrapper(esp);
     break;
 
   case SYS_SEEK:
-    seek_wrapper();
+    seek_wrapper(esp);
     break;
 
   case SYS_TELL:
-    tell_wrapper();
+    tell_wrapper(esp);
     break;
 
   case SYS_CLOSE:
-    close_wrapper();
+    close_wrapper(esp);
     break;
 
   default:
@@ -121,79 +123,157 @@ validate_void_ptr(const void* pt)
 }
 
 void
-halt_wrapper()
+halt()
 {
 
 }
 
 void
-exit_wrapper()
+halt_wrapper(void* esp)
 {
-  
+
 }
 
 void
-exec_wrapper()
+exit()
 {
-  
+
 }
 
 void
-wait_wrapper()
-{
-  
-}
-
-void
-create_wrapper()
+exit_wrapper(void* esp)
 {
   
 }
 
 void
-remove_wrapper()
+exec()
+{
+
+}
+
+void
+exec_wrapper(void* esp)
 {
   
 }
 
 void
-open_wrapper()
+wait()
+{
+
+}
+
+void
+wait_wrapper(void* esp)
 {
   
 }
 
 void
-filesize_wrapper()
+create()
+{
+
+}
+
+void
+create_wrapper(void* esp)
 {
   
 }
 
 void
-read_wrapper()
+remove()
+{
+
+}
+
+void
+remove_wrapper(void* esp)
 {
   
 }
 
 void
-write_wrapper()
+open()
+{
+
+}
+
+void
+open_wrapper(void* esp)
 {
   
 }
 
 void
-seek_wrapper()
+filesize()
+{
+
+}
+
+void
+filesize_wrapper(void* esp)
 {
   
 }
 
 void
-tell_wrapper()
+read()
+{
+
+}
+
+void
+read_wrapper(void* esp)
 {
   
 }
 
 void
-close_wrapper()
+write()
+{
+
+}
+
+void
+write_wrapper(void* esp)
+{
+  
+}
+
+void
+seek()
+{
+
+}
+
+void
+seek_wrapper(void* esp)
+{
+  
+}
+
+void
+tell()
+{
+
+}
+
+void
+tell_wrapper(void* esp)
+{
+  
+}
+
+void
+close()
+{
+
+}
+
+void
+close_wrapper(void* esp)
 {
   
 }
